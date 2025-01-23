@@ -1,8 +1,6 @@
 import { Model } from "mongoose";
 import IUser from "../../entities/user";
 import IBaseRepository from "../../global/repository";
-import { UserModel } from "../models/users";
-import { toArray } from "../../utils/functions";
 import AppError from "../../errors/index";
 import { StatusCodes } from "../../global/enums/index";
 import { ID, IResponseData, IResponseDataPaginated } from "../../global/entities";
@@ -13,81 +11,99 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
   // Create a single or multiple users
   async create(data: IUser | IUser[]): Promise<IResponseData<IUser>> {
     try {
-      // Handle multiple users
+      let result: IUser | IUser[];
       if (Array.isArray(data)) {
-        const users = await this.model.insertMany(data as IUser[]);
-        return {
-          data: users[0], // Return the first user to match the expected type
-          status: StatusCodes.created,
-          message: `${users.length} user(s) created successfully.`,
-        };
+        result = await this.model.insertMany(data as IUser[]);
+      } else {
+        result = await this.model.create(data);
       }
-  
-      // Handle a single user
-      const user = await this.model.create(data);
       return {
-        data: user,
+        data: Array.isArray(result) ? result[0] : result, // Return the first user if array
         status: StatusCodes.created,
-        message: "User created successfully.",
+        message: "User(s) created successfully.",
       };
     } catch (error) {
       throw new AppError({
-        message: `Error creating user: ${error}`,
+        message: `Error creating user(s): ${error}`,
+        type: "Database Error",
+        status: StatusCodes.internalServerError,
+      });
+    }
+  }
+
+  // Update a single or multiple users
+  async update(data: IUser | IUser[]): Promise<IResponseData<IUser>> {
+    try {
+      if (Array.isArray(data)) {
+        // Handle multiple updates
+        const updatedUsers = await Promise.all(
+          data.map(async (user) => {
+            const updatedUser = await this.model.findByIdAndUpdate(user.id, user, { new: true }).exec();
+            if (!updatedUser) {
+              throw new AppError({
+                message: `User with ID ${user.id} not found.`,
+                type: "Not Found",
+                status: StatusCodes.notFound,
+              });
+            }
+            return updatedUser;
+          })
+        );
+  
+        return {
+          data: updatedUsers[0], // Return the first updated user
+          status: StatusCodes.ok,
+          message: `${updatedUsers.length} user(s) updated successfully.`,
+        };
+      } else {
+        // Handle single update
+        const updatedUser = await this.model.findByIdAndUpdate(data.id, data, { new: true }).exec();
+  
+        if (!updatedUser) {
+          throw new AppError({
+            message: `User with ID ${data.id} not found.`,
+            type: "Not Found",
+            status: StatusCodes.notFound,
+          });
+        }
+  
+        return {
+          data: updatedUser,
+          status: StatusCodes.ok,
+          message: "User updated successfully.",
+        };
+      }
+    } catch (error) {
+      throw new AppError({
+        message: `Error updating user(s): ${error}`,
         type: "Database Error",
         status: StatusCodes.internalServerError,
       });
     }
   }
   
-  
-  
-
-  // Update a single or multiple users
-  async update(data: IUser | IUser[]): Promise<IResponseData<IUser>> {
-    try {
-      const updatedUsers = Array.isArray(data)
-        ? await Promise.all(
-            data.map((user) =>
-              this.model.findByIdAndUpdate(user.id, user, { new: true }).exec()
-            )
-          )
-        : await this.model.findByIdAndUpdate(data.id, data, { new: true }).exec();
-
-      return {
-        success: true,
-        data: toArray(updatedUsers),
-      };
-    } catch (error) {
-      throw new AppError({
-        message: error.message,
-        type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
-      });
-    }
-  }
 
   // Delete a user by ID
   async delete(id: ID): Promise<IResponseData<IUser>> {
     try {
       const deletedUser = await this.model.findByIdAndDelete(id).exec();
-
       if (!deletedUser) {
         throw new AppError({
           message: "User not found.",
           type: "Not Found",
-          status: StatusCodes.NOT_FOUND,
+          status: StatusCodes.notFound,
         });
       }
-
       return {
-        success: true,
         data: deletedUser,
+        status: StatusCodes.ok,
+        message: "User deleted successfully.",
       };
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Error deleting user: ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
@@ -96,24 +112,23 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
   async find(id: ID): Promise<IResponseData<IUser>> {
     try {
       const user = await this.model.findById(id).exec();
-
       if (!user) {
         throw new AppError({
           message: "User not found.",
           type: "Not Found",
-          status: StatusCodes.NOT_FOUND,
+          status: StatusCodes.notFound,
         });
       }
-
       return {
-        success: true,
         data: user,
+        status: StatusCodes.ok,
+        message: "User found successfully.",
       };
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Error finding user found ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
@@ -122,16 +137,16 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
   async findAll(): Promise<IResponseData<IUser[]>> {
     try {
       const users = await this.model.find().exec();
-
       return {
-        success: true,
         data: users,
+        status: StatusCodes.ok,
+        message: "Users retrieved successfully.",
       };
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Error finding all users: ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
@@ -143,23 +158,23 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
   ): Promise<IResponseDataPaginated> {
     try {
       const skip = (page - 1) * limit;
-      const total = await this.model.countDocuments().exec();
+      const totalCount = await this.model.countDocuments().exec();
       const users = await this.model.find().skip(skip).limit(limit).exec();
-
+  
       return {
-        success: true,
         data: users,
-        pagination: {
-          total,
-          page,
-          limit,
-        },
+        page,
+        limit,
+        filterCount: users.length,
+        totalCount,
+        status: StatusCodes.ok,
+        message: "Users retrieved successfully with pagination.",
       };
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Failed to find users with pagination ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
@@ -170,9 +185,9 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
       return await this.model.countDocuments().exec();
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Error counting users: ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
@@ -181,16 +196,16 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
   async search(query: any): Promise<IResponseData<IUser[]>> {
     try {
       const users = await this.model.find(query).exec();
-
       return {
-        success: true,
         data: users,
+        status: StatusCodes.ok,
+        message: "Users retrieved successfully.",
       };
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Error searching users: ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
@@ -203,23 +218,23 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
   ): Promise<IResponseDataPaginated> {
     try {
       const skip = (page - 1) * limit;
-      const total = await this.model.countDocuments(query).exec();
+      const totalCount = await this.model.countDocuments(query).exec();
       const users = await this.model.find(query).skip(skip).limit(limit).exec();
-
+  
       return {
-        success: true,
         data: users,
-        pagination: {
-          total,
-          page,
-          limit,
-        },
+        page,
+        limit,
+        filterCount: users.length,
+        totalCount,
+        status: StatusCodes.ok,
+        message: "Users retrieved successfully with pagination.",
       };
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Error searching users with pagination: ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
@@ -227,12 +242,12 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
   // Check if a user exists by ID
   async exists(id: ID): Promise<boolean> {
     try {
-      return await this.model.exists({ _id: id }).exec() != null;
+      return (await this.model.exists({ _id: id }).exec()) !== null;
     } catch (error) {
       throw new AppError({
-        message: error.message,
+        message: `Error checking if user exists: ${error}`,
         type: "Database Error",
-        status: StatusCodes.INTERNAL_SERVER_ERROR,
+        status: StatusCodes.internalServerError,
       });
     }
   }
