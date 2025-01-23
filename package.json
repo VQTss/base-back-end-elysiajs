@@ -6,7 +6,22 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
-    "elysia": "latest"
+    "@chneau/elysia-logger": "^1.0.10",
+    "@elysiajs/bearer": "^1.1.2",
+    "@elysiajs/cors": "^1.1.1",
+    "@elysiajs/cron": "^1.1.1",
+    "@elysiajs/jwt": "^1.1.1",
+    "@elysiajs/opentelemetry": "^1.1.7",
+    "@elysiajs/stream": "^1.1.0",
+    "@elysiajs/swagger": "^1.1.6",
+    "@elysiajs/trpc": "^1.1.0",
+    "@elysiajs/websocket": "^0.2.8",
+    "@trpc/server": "^10.45.2",
+    "dotenv": "^16.4.7",
+    "elysia": "latest",
+    "fs": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.8.3"
   },
   "devDependencies": {
     "bun-types": "latest"
