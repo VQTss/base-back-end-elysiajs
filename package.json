@@ -19,6 +19,7 @@
     "@trpc/server": "^10.45.2",
     "dotenv": "^16.4.7",
     "elysia": "latest",
+    "elysia-helmet": "^2.0.0",
     "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.3"
