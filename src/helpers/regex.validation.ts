@@ -1,5 +1,5 @@
 
-import { emailRegex, usernameRegex, passwordRegex, phoneRegex } from '../constants/regex';
+import { emailRegex, usernameRegex, passwordRegex, phoneRegex, numberRegex } from '../constants/regex';
 
 
 
@@ -19,6 +19,10 @@ class RegexValidator {
 
     public static phone(value: string): boolean {
         return phoneRegex.test(value);
+    }
+
+    public static number(value: string): boolean {
+        return numberRegex.test(value);
     }
 }
 

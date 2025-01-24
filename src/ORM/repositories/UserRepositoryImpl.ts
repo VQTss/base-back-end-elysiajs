@@ -133,6 +133,56 @@ export class UserRepositoryImpl implements IBaseRepository<IUser> {
     }
   }
 
+  // Find users by email
+  async findByEmail(email: string): Promise<IResponseData<IUser>> {
+    try {
+      const user = await this.model.findOne({ email }).exec();
+      if (!user) {
+        throw new AppError({
+          message: "User not found with the given email.",
+          type: "Not Found",
+          status: StatusCodes.notFound,
+        });
+      }
+      return {
+        data: user,
+        status: StatusCodes.ok,
+        message: "User found successfully.",
+      };
+    } catch (error) {
+      throw new AppError({
+        message: `Error finding user by email: ${error}`,
+        type: "Database Error",
+        status: StatusCodes.internalServerError,
+      });
+    }
+  }
+
+  // Find users by username and password
+  async findByUsernameAndPassword(username: string, password: string): Promise<IResponseData<IUser>> {
+    try {
+      const user = await this.model.findOne({ username, password }).exec();
+      if (!user) {
+        throw new AppError({
+          message: "User not found with the given username and password.",
+          type: "Not Found",
+          status: StatusCodes.notFound,
+        });
+      }
+      return {
+        data: user,
+        status: StatusCodes.ok,
+        message: "User found successfully.",
+      };
+    } catch (error) {
+      throw new AppError({
+        message: `Error finding user by username and password: ${error}`,
+        type: "Database Error",
+        status: StatusCodes.internalServerError,
+      });
+    }
+  }
+
   // Find all users
   async findAll(): Promise<IResponseData<IUser[]>> {
     try {

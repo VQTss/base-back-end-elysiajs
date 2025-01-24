@@ -6,6 +6,7 @@ interface IUsers {
     email?: string; // check for invalid email address
     username?: string; // check for regex pattern username 
     password?: string; // check regex password before to save password
+    displayName?: string; 
     passwordHash?: string;
     firstname?: string;
     lastname?: string;
